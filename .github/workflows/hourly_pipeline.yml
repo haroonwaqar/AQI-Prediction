@@ -3,7 +3,7 @@ name: Daily Sialkot AQI Feature Pipeline
 on:
   schedule:
     # Runs at hourly every single day
-    - cron: "0 * * * *" 
+    - cron: "23 * * * *" 
   workflow_dispatch: # This adds a "Run Workflow" button in GitHub so you can test it manually!
 
 jobs:
