@@ -11,9 +11,9 @@ load_dotenv()
 api_key_weather = os.getenv("WeatherAPI_KEY")
 api_key_hopswork = os.getenv("HopsworkAPI_KEY")
 
-st.set_page_config(page_title="Sialkot AQI Forecaster", page_icon="🌤️", layout="centered")
+st.set_page_config(page_title="Sialkot AQI Forecaster", page_icon="🌤️")
 st.title("🌤️ Sialkot Air Quality Index (AQI) 3-Day Forecast")
-st.write("developed using OpenWeather, OpenMeteo, and Hopsworks")
+st.write("A fully automated, real-time air quality platform that ingests live environmental data every hour and leverages cloud-based machine learning to predict localized conditions 72 hours in advance.")
 
 # 1. Load the model in cache
 @st.cache_resource
@@ -152,7 +152,7 @@ features_for_prediction = future_weather_df[['wind_speed_100m', 'precipitation',
 future_weather_df['Predicted_PM25'] = rf_model.predict(features_for_prediction)
 
 # Convert to AQI Bucket
-future_weather_df['Predicted_AQI_Level'] = future_weather_df['Predicted_PM25'].apply(calculate_us_aqi)
+future_weather_df['Predicted_AQI'] = future_weather_df['Predicted_PM25'].apply(calculate_us_aqi)
 
 # Dashboard View
 st.subheader("72-Hour PM2.5 Forecast")
@@ -176,11 +176,11 @@ future_weather_df = future_weather_df[future_weather_df['date'].isin(next_3_days
 daily_summary_df = future_weather_df.groupby('date')['Predicted_PM25'].mean().reset_index()
 
 # Convert the Daily Average PM2.5 into our 1-5 AQI Category
-daily_summary_df['Predicted_AQI_Level'] = daily_summary_df['Predicted_PM25'].apply(calculate_us_aqi)
+daily_summary_df['Predicted_AQI'] = daily_summary_df['Predicted_PM25'].apply(calculate_us_aqi)
 
 # Alert System
 # Find the absolute worst AQI predicted in the next 3 days
-worst_forecast_aqi = daily_summary_df['Predicted_AQI_Level'].max()
+worst_forecast_aqi = daily_summary_df['Predicted_AQI'].max()
 
 if worst_forecast_aqi >= 151: # Unhealthy or worse
     st.error(f"**AIR QUALITY ALERT:** Hazardous smog conditions expected this week. Peak AQI will reach **{worst_forecast_aqi}**. Wear an N95 mask outdoors.")
@@ -197,7 +197,7 @@ cols = st.columns(3)
 for index, row in daily_summary_df.iterrows():
     display_date = row['date'].strftime('%b %d')
     
-    daily_aqi = int(row['Predicted_AQI_Level'])
+    daily_aqi = int(row['Predicted_AQI'])
     daily_pm25 = round(row['Predicted_PM25'], 1)
     
     # Grab the human context for this specific AQI number
@@ -207,7 +207,7 @@ for index, row in daily_summary_df.iterrows():
         # the metric card with the label and emoji
         st.metric(
             label=f"{display_date} | {context['label']} {context['emoji']}", 
-            value=f"Level {daily_aqi}", 
+            value=f"AQI: {daily_aqi}", 
             delta=f"{daily_pm25} µg/m³ PM2.5", 
             delta_color="off" 
         )
@@ -218,4 +218,4 @@ st.markdown("---")
 st.write("### Raw Forecast Data (Hourly)")
 
 # Hourly prediction
-st.dataframe(future_weather_df[['datetime', 'Predicted_PM25', 'Predicted_AQI_Level']])
+st.dataframe(future_weather_df[['datetime', 'Predicted_PM25', 'Predicted_AQI']])
