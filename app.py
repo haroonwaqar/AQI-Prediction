@@ -95,34 +95,50 @@ def fetch_weather_forecast():
     
     return forecast_df
 
-# 3. Conversion logic
-def convert_pm25_to_aqi_category(pm25_value):
-    # Converts continuous PM2.5 into the categorical 1-5 AQI scale.
-    if pm25_value > 0 and pm25_value < 10:
-        aqi = 1
-    elif pm25_value >= 10 and pm25_value < 25:
-        aqi = 2
-    elif pm25_value >= 25 and pm25_value < 50:
-        aqi = 3
-    elif pm25_value >= 50 and pm25_value < 75:
-        aqi = 4
-    elif pm25_value >= 75:
-        aqi = 5
-    else:
-        aqi = 0
+# 3. Conversion logic to US AQI scale
+def calculate_us_aqi(pm25):
+    # Breakpoints: (C_low, C_high, AQI_low, AQI_high)
+    breakpoints = [
+        (0.0, 12.0, 0, 50),       # Good
+        (12.1, 35.4, 51, 100),    # Moderate
+        (35.5, 55.4, 101, 150),   # Unhealthy for Sensitive Groups
+        (55.5, 150.4, 151, 200),  # Unhealthy
+        (150.5, 250.4, 201, 300), # Very Unhealthy
+        (250.5, 350.4, 301, 400), # Hazardous
+        (350.5, 500.4, 401, 500)  # Hazardous (Beyond Index)
+    ]
     
-    return aqi
+    # EPA requires rounding PM2.5 to 1 decimal place before calculating
+    c = round(pm25, 1)
+    
+    for c_low, c_high, i_low, i_high in breakpoints:
+        if c_low <= c <= c_high:
+            aqi = ((i_high - i_low) / (c_high - c_low)) * (c - c_low) + i_low
+            return int(round(aqi))
+            
+    # If Sialkot smog goes literally off the charts
+    if c > 500.4:
+        return 500 
+    
+    return 0
 
-# Translation dictionary
-AQI_CONTEXT = {
-    1: {"label": "Good", "emoji": "🌲", "advice": "Air is clean. Perfect day for a run!"},
-    2: {"label": "Fair", "emoji": "🙂", "advice": "Air quality is acceptable for most people."},
-    3: {"label": "Moderate", "emoji": "😷", "advice": "Sensitive groups should reduce heavy outdoor exertion."},
-    4: {"label": "Poor", "emoji": "⚠️", "advice": "Unhealthy. Wear a mask outdoors and keep windows closed."},
-    5: {"label": "Hazardous", "emoji": "☠️", "advice": "Dangerous air quality. Stay indoors and use purifiers."}
-}
+# 4. Translation the aqi value for simple context function
+def get_aqi_context(aqi_value):
+    """Returns the human label, emoji, and advice based on US AQI."""
+    if aqi_value <= 50:
+        return {"label": "Good", "emoji": "🌲", "color": "green", "advice": "Air is clean. Perfect day for a run!"}
+    elif aqi_value <= 100:
+        return {"label": "Moderate", "emoji": "🙂", "color": "yellow", "advice": "Acceptable air quality for most people."}
+    elif aqi_value <= 150:
+        return {"label": "Sensitive", "emoji": "😷", "color": "orange", "advice": "Sensitive groups should reduce heavy outdoor exertion."}
+    elif aqi_value <= 200:
+        return {"label": "Unhealthy", "emoji": "⚠️", "color": "red", "advice": "Unhealthy. Wear a mask outdoors."}
+    elif aqi_value <= 300:
+        return {"label": "Very Unhealthy", "emoji": "🛑", "color": "purple", "advice": "Dangerous air quality. Limit all outdoor activities."}
+    else:
+        return {"label": "Hazardous", "emoji": "☠️", "color": "maroon", "advice": "Health warning of emergency conditions. Stay indoors."}
 
-# 4. Execute and Display
+# 5. Execute and Display
 with st.spinner("Downloading AI Model and Live Weather..."):
     rf_model = get_model()
     future_weather_df = fetch_weather_forecast()
@@ -136,7 +152,7 @@ features_for_prediction = future_weather_df[['wind_speed_100m', 'precipitation',
 future_weather_df['Predicted_PM25'] = rf_model.predict(features_for_prediction)
 
 # Convert to AQI Bucket
-future_weather_df['Predicted_AQI_Level'] = future_weather_df['Predicted_PM25'].apply(convert_pm25_to_aqi_category)
+future_weather_df['Predicted_AQI_Level'] = future_weather_df['Predicted_PM25'].apply(calculate_us_aqi)
 
 # Dashboard View
 st.subheader("72-Hour PM2.5 Forecast")
@@ -160,7 +176,19 @@ future_weather_df = future_weather_df[future_weather_df['date'].isin(next_3_days
 daily_summary_df = future_weather_df.groupby('date')['Predicted_PM25'].mean().reset_index()
 
 # Convert the Daily Average PM2.5 into our 1-5 AQI Category
-daily_summary_df['Predicted_AQI_Level'] = daily_summary_df['Predicted_PM25'].apply(convert_pm25_to_aqi_category)
+daily_summary_df['Predicted_AQI_Level'] = daily_summary_df['Predicted_PM25'].apply(calculate_us_aqi)
+
+# Alert System
+# Find the absolute worst AQI predicted in the next 3 days
+worst_forecast_aqi = daily_summary_df['Predicted_AQI_Level'].max()
+
+if worst_forecast_aqi >= 151: # Unhealthy or worse
+    st.error(f"**AIR QUALITY ALERT:** Hazardous smog conditions expected this week. Peak AQI will reach **{worst_forecast_aqi}**. Wear an N95 mask outdoors.")
+elif worst_forecast_aqi >= 101: # Sensitive groups
+    st.warning(f"**AIR QUALITY ADVISORY:** Smog levels are rising. Peak AQI expected to reach **{worst_forecast_aqi}**. Sensitive individuals should take precautions.")
+else:
+    st.success(f"**ALL CLEAR:** Sialkot air quality looks great for the next 3 days! Peak AQI: **{worst_forecast_aqi}**.")
+st.markdown("---")
 
 # Streamlit UI: Create 3 side-by-side metric cards
 cols = st.columns(3)
@@ -173,7 +201,7 @@ for index, row in daily_summary_df.iterrows():
     daily_pm25 = round(row['Predicted_PM25'], 1)
     
     # Grab the human context for this specific AQI number
-    context = AQI_CONTEXT.get(daily_aqi, {"label": "Unknown", "emoji": "❓", "advice": "Data unavailable."})
+    context = get_aqi_context(daily_aqi)
     
     with cols[index]:
         # the metric card with the label and emoji
@@ -183,11 +211,11 @@ for index, row in daily_summary_df.iterrows():
             delta=f"{daily_pm25} µg/m³ PM2.5", 
             delta_color="off" 
         )
-        
         # Add the actionable health advice right below the card
         st.caption(f"**Advice:** {context['advice']}")
 
 st.markdown("---")
 st.write("### Raw Forecast Data (Hourly)")
+
 # Hourly prediction
 st.dataframe(future_weather_df[['datetime', 'Predicted_PM25', 'Predicted_AQI_Level']])
