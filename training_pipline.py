@@ -6,11 +6,8 @@ from dotenv import load_dotenv
 
 # Machine Learning Libraries
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
-#from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 
 # 1. Load your API key
 load_dotenv()
@@ -36,45 +33,26 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Train the models
 # Initialize the competitors
-models = {
-    "Ridge_Regression": Ridge(),
-    "Random_Forest": RandomForestRegressor(n_estimators=100, random_state=42),
-    "XGBoost": XGBRegressor(n_estimators=100, random_state=42)
-}
+model = RandomForestRegressor(n_estimators=100, random_state=42)
 
-# Dictionary to keep track of the results
-results = {}
-
-# Train and evaluate each model in a loop
-for name, model in models.items():
-    # Train the model using the .fit() method on your training data
-    model.fit(X_train, y_train)
+model.fit(X_train, y_train)
     
-    # Ask the model to predict PM2.5 for the hidden X_test data
-    predictions = model.predict(X_test)
+# Ask the model to predict PM2.5 for the hidden X_test data
+predictions = model.predict(X_test)
     
-    # Calculate the three required metrics by comparing 'predictions' to 'y_test'
-    rmse = root_mean_squared_error(y_test, predictions) 
-    mae = mean_absolute_error(y_test, predictions)
-    r2 = r2_score(y_test, predictions)
+# Calculate the three required metrics by comparing 'predictions' to 'y_test'
+rmse = root_mean_squared_error(y_test, predictions) 
+mae = mean_absolute_error(y_test, predictions)
+r2 = r2_score(y_test, predictions)
     
-    results[name] = {"RMSE": rmse, "MAE": mae, "R2": r2, "model_object": model}
-    print(f"{name} trained. R2 Score: {r2:.3f}")
-
-
-# Find the model with the highest R2 score
-best_model_name = max(results, key=lambda k: results[k]['R2'])
-best_metrics = results[best_model_name]
-champion_model = best_metrics['model_object']
-
-print(f"\nWINNER: {best_model_name} with an R2 of {best_metrics['R2']:.3f}")
-
+results = {"RMSE": rmse, "MAE": mae, "R2": r2, "model_object": model}
+print(f"Random Forest Regressor trained. R2 Score: {r2:.3f}")
 
 # Push the best model to hopswork
 # Save the model locally first as a .pkl file
 model_dir = "aqi_model_dir"
 os.makedirs(model_dir, exist_ok=True)
-joblib.dump(champion_model, f"{model_dir}/sialkot_pm25_model.pkl")
+joblib.dump(model, f"{model_dir}/sialkot_pm25_model.pkl")
 
 # Connect to the Model Registry
 mr = project.get_model_registry()
@@ -83,11 +61,11 @@ mr = project.get_model_registry()
 sialkot_model = mr.python.create_model(
     name="sialkot_pm2_5_predictor",
     metrics={
-        "RMSE": best_metrics['RMSE'],
-        "MAE": best_metrics['MAE'],
-        "R2": best_metrics['R2']
+        "RMSE": rmse,
+        "MAE": mae,
+        "R2": r2
     },
-    description=f"Predicts PM2.5 using algorithm: {best_model_name}"
+    description="Predicts PM2.5 using Random Forest Regressor"
 )
 
 # Upload the local directory to the cloud
