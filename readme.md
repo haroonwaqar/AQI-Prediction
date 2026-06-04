@@ -1,7 +1,7 @@
-# AQI Forecaster
+# AQI Prediction 
 
 ## Overview
-The **Sialkot AQI Forecaster** is a Machine Learning Operations (MLOps) pipeline that predicts the Air Quality Index (AQI) for Sialkot, Pakistan, 72 hours into the future. 
+The **Sialkot AQI Predicter** is a Machine Learning Operations (MLOps) pipeline that predicts the Air Quality Index (AQI) for Sialkot, Pakistan, 72 hours into the future. 
 
 Instead of a static notebook, this project operates as an autonomous, self-updating cloud system. It fetches live meteorological and chemical data, stores it in a serverless feature store, automatically retrains its predictive model to prevent data drift, and serves forecasts via a real-time web dashboard using the official US EPA AQI mathematical standards.
 
@@ -16,9 +16,9 @@ The system is decoupled into three independent pipelines to ensure scalability a
 * **Function:** Ingests live weather data (Open-Meteo) and chemical pollutants (OpenWeather), merges them asynchronously, and pushes the clean features to the **Hopsworks Feature Store**.
 
 ### 2. The Training Pipeline (Continuous Training)
-* **Frequency:** Runs weekly (Sundays at 00:45 UTC) via GitHub Actions.
+* **Frequency:** Runs daily (At 00:45 UTC) via GitHub Actions.
 * **Function:** Downloads the freshest historical data from Hopsworks. It forces an algorithmic bake-off (Ridge, Random Forest, XGBoost), dynamically selects the best performer, and pushes the serialized `.pkl` brain to the **Hopsworks Model Registry**.
-* **Model:** Random Forest Regressor ($R^2 \approx 0.819$).
+* **Model:** Best model was Xgboost Regressor
 
 ### 3. The Inference Pipeline (Web UI)
 * **Environment:** Streamlit Community Cloud.
