@@ -7,6 +7,7 @@ import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
 from datetime import datetime
+import pytz # Add this to the top of your app.py imports
 
 load_dotenv()
 api_key_weather = os.getenv("WeatherAPI_KEY")
@@ -183,7 +184,8 @@ st.subheader("Daily AQI Forecast (Next 3 Days)")
 future_weather_df['date'] = future_weather_df['datetime'].dt.date
 
 # Filter out "Today"
-today = datetime.now().date()
+pkt_tz = pytz.timezone('Asia/Karachi')
+today = datetime.now(pkt_tz).date()
 future_weather_df = future_weather_df[future_weather_df['date'] > today]
 
 # Ensure we ONLY have exactly the next 3 days (OpenWeather might return 4 or 5)
