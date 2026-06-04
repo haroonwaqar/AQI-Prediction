@@ -9,8 +9,10 @@ latitude = 32.49 # sialkot
 longitude = 74.54 # sialkot
 
 # Use this to run first time so this time frame data is uploaded on Hopswork. Then shift to Dynamic so GitHub Actions can Work.
-# start = 1772204400 # 27 Feb 2026
-# end = 1777302000 # 27 April 2026
+# start = 1772204400 # 27 Feb 2026 
+# end = 1777302000 # 27 April 2026 
+# start = 1769904000 # 1 Feb 2026
+# end = 1780272000 # 1 June 2026
 
 # start_date = datetime.fromtimestamp(start)
 # end_date = datetime.fromtimestamp(end)
@@ -64,7 +66,7 @@ def push_to_feature_store(df,api_key):
     fs = project.get_feature_store()
 
     aqi_fg = fs.get_or_create_feature_group(
-        name="sialkot_aqi_features",
+        name="sialkot_aqi_features_v2",
         version=1,
         primary_key=["city"],         # The 'thing' we are measuring
         event_time="datetime",        # 'When' we measured it
@@ -86,7 +88,7 @@ if __name__ == '__main__':
     # base_url_history_pollution = f"http://api.openweathermap.org/data/2.5/air_pollution/history?lat={latitude}&lon={longitude}&start={start}&end={end}&appid={api_key_weather}"
     # # Using open meteo 
     # base_url_history_weather = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=wind_speed_100m,precipitation,apparent_temperature,wind_gusts_10m,vapour_pressure_deficit,relative_humidity_2m&timezone=GMT"
-    # #features = ['main', 'wind', 'rain', 'visibility']
+    # # features = ['main', 'wind', 'rain', 'visibility']
     
     # Dynamic Time Calculation
     # We pull 2 days of data to ensure no hours are missed between runs
