@@ -3,8 +3,8 @@ name: Sialkot Model Retraining
 on:
   schedule:
     
-    - cron: "45 0 * * 0" # Runs at midnight on Sunday (for training_pipeline) aviods traffic 
-    # - cron: "45 0 * * *" # Runs exactly once a day at 00:45 UTC (which is 5:45 AM in Sialkot).
+    # - cron: "45 0 * * 0" # Runs at midnight on Sunday (for training_pipeline) aviods traffic 
+    - cron: "45 0 * * *" # Runs exactly once a day at 00:45 UTC (which is 5:45 AM in Sialkot).
   workflow_dispatch: # Allows you to click a button to force a retrain manually
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements_training.txt
+          pip install -r requirements.txt
           pip install hopsworks[python]
 
       - name: Execute Model Training Arena
