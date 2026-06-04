@@ -3,6 +3,7 @@ import joblib
 import hopsworks
 import pandas as pd
 import requests
+import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
 from datetime import datetime
@@ -23,7 +24,7 @@ def get_model():
     mr = project.get_model_registry()
     
     # Get the model from uploaded hopswork
-    model_meta = mr.get_model("sialkot_pm2_5_predictor")
+    model_meta = mr.get_model("sialkot_pm2_5_predictor_v2")
     model_dir = model_meta.download()
     
     # Load the actual .pkl file
@@ -84,15 +85,15 @@ def fetch_weather_forecast():
     # Pull 4 days of data to ensure no hours are missed between runs
 
     # Using OpenMeteo
-    forecast_weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=wind_speed_100m,precipitation,apparent_temperature,wind_gusts_10m,vapour_pressure_deficit,relative_humidity_2m&timezone=GMT&forecast_days=4"
+    forecast_weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&hourly=wind_speed_100m,precipitation,apparent_temperature,wind_gusts_10m,vapour_pressure_deficit,relative_humidity_2m&timezone=GMT&forecast_days=5&past_days=1"
 
     # Using OpenWeather 
     forcast_pollutants_url = f"http://api.openweathermap.org/data/2.5/air_pollution/forecast?lat={latitude}&lon={longitude}&appid={api_key_weather}"
 
     forecast_weather_df = get_weather_forcast(forecast_weather_url)
     forecast_pollutants_df = get_pollution_forcast(forcast_pollutants_url)
-    forecast_df = pd.merge(forecast_weather_df,forecast_pollutants_df,"inner","datetime")
-    
+    forecast_df = pd.merge(forecast_weather_df,forecast_pollutants_df, on='datetime', how='left')
+
     return forecast_df
 
 # 3. Conversion logic to US AQI scale
@@ -143,10 +144,27 @@ with st.spinner("Downloading AI Model and Live Weather..."):
     rf_model = get_model()
     future_weather_df = fetch_weather_forecast()
 
+future_weather_df['temp_lag1'] = future_weather_df['apparent_temperature'].shift(1)
+future_weather_df['wind_rolling_6'] = future_weather_df['wind_speed_100m'].rolling(6).mean()
+
+future_weather_df['day_of_week'] = future_weather_df['datetime'].dt.dayofweek
+future_weather_df['month']       = future_weather_df['datetime'].dt.month
+future_weather_df['is_weekend']  = future_weather_df['day_of_week'].isin([5, 6]).astype(int)
+
+# Convert the 24-hour clock into a mathematical circle using Sine and Cosine
+future_weather_df['hour_sin'] = np.sin(2 * np.pi * future_weather_df['hour'] / 24)
+future_weather_df['hour_cos'] = np.cos(2 * np.pi * future_weather_df['hour'] / 24)
+
+future_weather_df = future_weather_df.ffill()
+
+future_weather_df = future_weather_df.dropna().reset_index(drop=True)
+
 # Prepare the exact columns the model expects and used in training
 features_for_prediction = future_weather_df[['wind_speed_100m', 'precipitation', 'apparent_temperature', 
                                              'wind_gusts_10m', 'vapour_pressure_deficit', 
-                                             'relative_humidity_2m', 'co', 'no2','o3','so2','nh3','hour']]
+                                             'relative_humidity_2m', 'co', 'no2','o3','so2','nh3','temp_lag1',
+                                             'wind_rolling_6','day_of_week','month',
+                                             'is_weekend','hour_sin','hour_cos']]
 
 # Make the PM2.5 Predictions
 future_weather_df['Predicted_PM25'] = rf_model.predict(features_for_prediction)
