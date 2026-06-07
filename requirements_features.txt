@@ -1,4 +1,0 @@
-requests==2.33.1
-pandas==2.3.3
-python-dotenv==1.2.2
-hopsworks==4.7.5
