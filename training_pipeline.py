@@ -19,6 +19,8 @@ fs = project.get_feature_store()
 fg = fs.get_feature_group("sialkot_aqi_features", version=1)
 df = fg.read()
 
+df = df.sort_values('datetime').reset_index(drop=True)
+
 # Create new features from existing ones
 # Have access to future weather via Open-Meteo!
 df['temp_lag1'] = df['apparent_temperature'].shift(1)
@@ -37,7 +39,7 @@ df = df.drop(columns=['hour'])
 
 df = df.dropna().reset_index(drop=True)
 
-# Sort the data
+# Sort the data again 
 df = df.sort_values('datetime').reset_index(drop=True)
 
 # Dropping features not needed
