@@ -37,6 +37,7 @@ df = df.drop(columns=['hour'])
 
 df = df.dropna().reset_index(drop=True)
 
+# Sort the data
 df = df.sort_values('datetime').reset_index(drop=True)
 
 # Dropping features not needed
@@ -47,7 +48,7 @@ X = df.drop(columns=columns_to_drop)
 
 y = df['pm2_5']
 
-# Use train_test_split to hide 20% of the data.
+# Use train_test_split to hide 20% of the data. # Chronological splitting
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
 # Train the model
@@ -65,7 +66,7 @@ mae = mean_absolute_error(y_test, predictions)
 r2 = r2_score(y_test, predictions)
     
 results = {"RMSE": rmse, "MAE": mae, "R2": r2, "model_object": model}
-print(f"Random Forest Regressor trained. R2 Score: {r2:.3f}")
+print(f"Xgboost Regressor trained. R2 Score: {r2:.3f}")
 
 # Push the best model to hopswork
 # Save the model locally first as a .pkl file
